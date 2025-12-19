@@ -9,11 +9,12 @@
         - Wizard para actualizar costos masivamente según el tipo de cambio del día.
     """,
     'author': 'Alphaqueb Consulting',
-    'depends': ['product', 'stock', 'account'],
+    'depends': ['product', 'stock', 'account', 'stock_account'],
     'data': [
         'security/ir.model.access.csv',
         'views/product_template_views.xml',
         'wizard/product_cost_update_wizard_views.xml',
+        'views/stock_valuation_layer_views.xml',
     ],
     'installable': True,
     'license': 'LGPL-3',

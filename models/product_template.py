@@ -3,37 +3,31 @@ from odoo import models, fields, api
 class ProductTemplate(models.Model):
     _inherit = 'product.template'
 
-    cost_currency_id = fields.Many2one(
-        'res.currency', string='Foreign Cost Currency',
+    usd_currency_id = fields.Many2one(
+        'res.currency', string='USD Currency',
         default=lambda self: self.env.ref('base.USD').id
     )
     
-    foreign_cost_price = fields.Monetary(
-        string='Foreign Cost',
-        currency_field='cost_currency_id',
-        help="Price in foreign currency (e.g. USD)"
-    )
-    
-    last_rate_used = fields.Float(
-        string='Last Rate Used',
-        digits=(12, 6),
-        help="Exchange rate used for the last cost update"
+    # Campo calculado que reacciona a cambios en standard_price (MXN)
+    usd_cost = fields.Monetary(
+        string='Costo USD',
+        compute='_compute_usd_cost',
+        currency_field='usd_currency_id',
+        store=True, # Lo guardamos para que sea filtrable en listas
+        help="Equivalente en USD del costo principal en MXN"
     )
 
-    @api.onchange('foreign_cost_price', 'cost_currency_id')
-    def _onchange_foreign_cost(self):
-        """Al cambiar el costo en USD, actualiza el standard_price (MXN)"""
-        if self.foreign_cost_price and self.cost_currency_id:
-            company_currency = self.env.company.currency_id
-            # Obtener tasa actual
-            rate = self.cost_currency_id._get_rates(self.env.company, fields.Date.today()).get(self.cost_currency_id.id)
-            if rate:
-                # Odoo rates son 1/tasa (ej: 1/20 = 0.05)
-                actual_rate = 1 / rate
-                self.last_rate_used = actual_rate
-                self.standard_price = self.foreign_cost_price * actual_rate
-
-    def action_update_cost_from_usd(self):
-        """Actualiza el costo MXN basado en el USD guardado y la tasa actual"""
+    @api.depends('standard_price', 'usd_currency_id')
+    def _compute_usd_cost(self):
+        """Calcula USD basado en el MXN (standard_price) y la tasa actual"""
         for record in self:
-            record._onchange_foreign_cost()
+            if record.standard_price and record.usd_currency_id:
+                # Convertimos de MXN (Compañía) a USD
+                record.usd_cost = record.env.company.currency_id._convert(
+                    record.standard_price, 
+                    record.usd_currency_id, 
+                    record.env.company, 
+                    fields.Date.today()
+                )
+            else:
+                record.usd_cost = 0.0

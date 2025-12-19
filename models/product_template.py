@@ -1,4 +1,7 @@
 from odoo import models, fields, api
+import logging
+
+_logger = logging.getLogger(__name__)
 
 class ProductTemplate(models.Model):
     _inherit = 'product.template'
@@ -6,7 +9,8 @@ class ProductTemplate(models.Model):
     usd_currency_id = fields.Many2one(
         'res.currency', string='USD Currency',
         compute='_compute_usd_currency_id',
-        store=True
+        store=True,
+        readonly=False
     )
     
     usd_cost = fields.Monetary(
@@ -25,6 +29,7 @@ class ProductTemplate(models.Model):
 
     @api.depends('standard_price', 'usd_currency_id', 'company_id')
     def _compute_usd_cost(self):
+        """ Cálculo normal que se dispara al editar el producto """
         usd_currency = self.env.ref('base.USD', raise_if_not_found=False)
         for record in self:
             if not record.standard_price or not usd_currency:
@@ -46,7 +51,39 @@ class ProductTemplate(models.Model):
 
     @api.model
     def _cron_update_usd_costs(self):
-        """ Método llamado por la Acción Planificada """
-        # Buscamos solo productos activos para ahorrar recursos
+        """ 
+        Método mejorado para el CRON: 
+        Fuerza la actualización de la base de datos para todos los productos.
+        """
+        _logger.info("Iniciando actualización masiva de costos USD...")
+        
+        usd_currency = self.env.ref('base.USD', raise_if_not_found=False)
+        if not usd_currency:
+            _logger.error("No se encontró la moneda USD (base.USD)")
+            return
+
+        # Buscamos productos activos
         products = self.search([('active', '=', True)])
-        products._compute_usd_cost()
+        count = 0
+        
+        for product in products:
+            company = product.company_id or self.env.company
+            base_currency = company.currency_id
+            
+            # Calculamos el nuevo valor
+            new_usd_cost = base_currency._convert(
+                product.standard_price, 
+                usd_currency, 
+                company, 
+                fields.Date.today()
+            )
+            
+            # Usamos write para forzar que se guarde en la BD ignorando el cache
+            # Esto actualiza el campo aunque standard_price no haya cambiado
+            product.write({
+                'usd_cost': new_usd_cost,
+                'usd_currency_id': usd_currency.id
+            })
+            count += 1
+            
+        _logger.info("Se han actualizado %s productos con el tipo de cambio del día.", count)

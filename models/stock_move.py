@@ -3,10 +3,10 @@ from odoo import models, fields, api
 class StockMove(models.Model):
     _inherit = 'stock.move'
 
-    usd_unit_cost = fields.Float(
+    usd_unit_cost = fields.Monetary(
         string='Costo Unit. USD',
         compute='_compute_usd_valuation',
-        digits=(12, 4)
+        currency_field='usd_currency_id'
     )
     usd_value = fields.Monetary(
         string='Valor Total USD',
@@ -29,14 +29,15 @@ class StockMove(models.Model):
                 continue
                 
             conversion_date = move.date or fields.Date.today()
+            company_curr = move.company_id.currency_id
             
-            # Costo Unitario en USD
-            move.usd_unit_cost = move.company_id.currency_id._convert(
+            # Convertimos el precio unitario
+            move.usd_unit_cost = company_curr._convert(
                 move.price_unit, usd_currency, move.company_id, conversion_date
             )
             
-            # Valor Total en USD
+            # Valor total = (precio unitario * cantidad) convertido a USD
             total_val_company = move.price_unit * move.product_uom_qty
-            move.usd_value = move.company_id.currency_id._convert(
+            move.usd_value = company_curr._convert(
                 total_val_company, usd_currency, move.company_id, conversion_date
             )

@@ -16,14 +16,16 @@ class ProductTemplate(models.Model):
         help="Equivalente en USD del costo principal en MXN"
     )
 
-    @api.depends('standard_price', 'usd_currency_id')
+    @api.depends('standard_price', 'usd_currency_id', 'company_id')
     def _compute_usd_cost(self):
+        usd_currency = self.env.ref('base.USD', raise_if_not_found=False)
         for record in self:
-            if record.standard_price and record.usd_currency_id:
-                record.usd_cost = record.env.company.currency_id._convert(
+            if record.standard_price and usd_currency:
+                # Convertimos de la moneda de la compañía (MXN) a USD
+                record.usd_cost = record.company_id.currency_id._convert(
                     record.standard_price, 
-                    record.usd_currency_id, 
-                    record.env.company, 
+                    usd_currency, 
+                    record.company_id, 
                     fields.Date.today()
                 )
             else:

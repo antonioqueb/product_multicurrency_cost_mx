@@ -19,7 +19,7 @@ class StockMove(models.Model):
         default=lambda self: self.env.ref('base.USD', raise_if_not_found=False).id
     )
 
-    @api.depends('price_unit', 'product_uom_qty', 'date')
+    @api.depends('price_unit', 'product_uom_qty', 'date', 'company_id')
     def _compute_usd_valuation(self):
         usd_currency = self.env.ref('base.USD', raise_if_not_found=False)
         for move in self:
@@ -28,16 +28,15 @@ class StockMove(models.Model):
                 move.usd_value = 0.0
                 continue
                 
-            # Usamos la fecha del movimiento para la tasa histórica
             conversion_date = move.date or fields.Date.today()
             
-            # En Odoo 19, price_unit es el costo unitario del movimiento
+            # Costo Unitario en USD
             move.usd_unit_cost = move.company_id.currency_id._convert(
                 move.price_unit, usd_currency, move.company_id, conversion_date
             )
             
-            # Valor total = costo unitario * cantidad
-            total_val = move.price_unit * move.product_uom_qty
+            # Valor Total en USD
+            total_val_company = move.price_unit * move.product_uom_qty
             move.usd_value = move.company_id.currency_id._convert(
-                total_val, usd_currency, move.company_id, conversion_date
+                total_val_company, usd_currency, move.company_id, conversion_date
             )

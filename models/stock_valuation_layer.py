@@ -2,6 +2,7 @@ from odoo import models, fields, api
 
 class StockValuationLayer(models.Model):
     _inherit = 'stock.valuation.layer'
+    _description = 'Stock Valuation Layer USD'
 
     usd_unit_cost = fields.Float(
         string='Costo Unit. USD',
@@ -19,19 +20,24 @@ class StockValuationLayer(models.Model):
         default=lambda self: self.env.ref('base.USD').id
     )
 
-    @api.depends('unit_cost', 'value', 'create_date')
+    @api.depends('unit_cost', 'value')
     def _compute_usd_valuation(self):
-        usd_currency = self.env.ref('base.USD')
+        # Intentar obtener la moneda USD de forma segura
+        usd_currency = self.env.ref('base.USD', raise_if_not_found=False)
         for layer in self:
-            # Usamos la fecha de creación para la tasa histórica o la fecha de hoy si no hay
+            if not usd_currency:
+                layer.usd_unit_cost = 0.0
+                layer.usd_value = 0.0
+                continue
+                
             conversion_date = layer.create_date or fields.Date.today()
             
-            # Convertir Costo Unitario
+            # Conversión de Unit Cost
             layer.usd_unit_cost = layer.currency_id._convert(
                 layer.unit_cost, usd_currency, layer.company_id, conversion_date
             )
             
-            # Convertir Valor Total de la capa
+            # Conversión de Valor Total
             layer.usd_value = layer.currency_id._convert(
                 layer.value, usd_currency, layer.company_id, conversion_date
             )

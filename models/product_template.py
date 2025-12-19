@@ -31,15 +31,12 @@ class ProductTemplate(models.Model):
                 record.usd_cost = 0.0
                 continue
             
-            # Forzamos la obtención de la compañía para asegurar la moneda base (MXN)
             company = record.company_id or self.env.company
             base_currency = company.currency_id
             
-            # Si la moneda base ya es USD, no hay conversión
             if base_currency == usd_currency:
                 record.usd_cost = record.standard_price
             else:
-                # Conversión explícita con fecha de hoy
                 record.usd_cost = base_currency._convert(
                     record.standard_price, 
                     usd_currency, 
@@ -49,6 +46,7 @@ class ProductTemplate(models.Model):
 
     @api.model
     def _cron_update_usd_costs(self):
-        """ Método llamado por la Acción Planificada para recalcular todo """
-        products = self.search([])
+        """ Método llamado por la Acción Planificada """
+        # Buscamos solo productos activos para ahorrar recursos
+        products = self.search([('active', '=', True)])
         products._compute_usd_cost()

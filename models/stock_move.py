@@ -31,12 +31,10 @@ class StockMove(models.Model):
             conversion_date = move.date or fields.Date.today()
             company_curr = move.company_id.currency_id
             
-            # Convertimos el precio unitario
             move.usd_unit_cost = company_curr._convert(
                 move.price_unit, usd_currency, move.company_id, conversion_date
             )
             
-            # Valor total = (precio unitario * cantidad) convertido a USD
             total_val_company = move.price_unit * move.product_uom_qty
             move.usd_value = company_curr._convert(
                 total_val_company, usd_currency, move.company_id, conversion_date

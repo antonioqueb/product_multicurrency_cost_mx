@@ -5,7 +5,7 @@ class ProductTemplate(models.Model):
 
     usd_currency_id = fields.Many2one(
         'res.currency', string='USD Currency',
-        compute='_compute_usd_currency_id', # Cambiado a computado para forzar que sea USD
+        compute='_compute_usd_currency_id',
         store=True
     )
     
@@ -31,17 +31,24 @@ class ProductTemplate(models.Model):
                 record.usd_cost = 0.0
                 continue
             
-            # Usar la moneda de la compañía del registro o la de la sesión actual
+            # Forzamos la obtención de la compañía para asegurar la moneda base (MXN)
             company = record.company_id or self.env.company
             base_currency = company.currency_id
             
+            # Si la moneda base ya es USD, no hay conversión
             if base_currency == usd_currency:
                 record.usd_cost = record.standard_price
             else:
-                # Forzamos la conversión con la tasa actual
+                # Conversión explícita con fecha de hoy
                 record.usd_cost = base_currency._convert(
                     record.standard_price, 
                     usd_currency, 
                     company, 
                     fields.Date.today()
                 )
+
+    @api.model
+    def _cron_update_usd_costs(self):
+        """ Método llamado por la Acción Planificada para recalcular todo """
+        products = self.search([])
+        products._compute_usd_cost()

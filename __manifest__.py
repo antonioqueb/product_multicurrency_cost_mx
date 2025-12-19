@@ -7,6 +7,7 @@
     'depends': ['product', 'stock', 'account', 'stock_account'],
     'data': [
         'security/ir.model.access.csv',
+        'data/ir_cron_data.xml',
         'views/product_template_views.xml',
         'views/stock_move_views.xml',
     ],

@@ -4,7 +4,6 @@
         <field name="model">stock.move</field>
         <field name="inherit_id" ref="stock.view_move_tree"/>
         <field name="arch" type="xml">
-            <!-- Cambiamos price_unit por product_uom_qty que sí existe en la vista base -->
             <xpath expr="//field[@name='product_uom_qty']" position="after">
                 <field name="usd_currency_id" column_invisible="True"/>
                 <field name="usd_unit_cost" string="Costo Unit. USD" optional="show" widget="monetary" options="{'currency_field': 'usd_currency_id'}"/>

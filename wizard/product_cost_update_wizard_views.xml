@@ -1,0 +1,35 @@
+<odoo>
+    <record id="view_product_cost_update_wizard_form" model="ir.ui.view">
+        <field name="name">product.cost.update.wizard.form</field>
+        <field name="model">product.cost.update.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Mass Update Product Costs">
+                <group>
+                    <field name="currency_id"/>
+                    <field name="current_rate"/>
+                </group>
+                <p class="alert alert-info">
+                    This will update the <b>Cost (standard_price)</b> of all products that have a 
+                    Foreign Cost defined, using the rate provided above.
+                </p>
+                <footer>
+                    <button name="apply_update" string="Update All Costs" type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_product_cost_update_wizard" model="ir.actions.act_window">
+        <field name="name">Update Costs from USD</field>
+        <field name="res_model">product.cost.update.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_update_product_costs_usd" 
+              name="Actualizar Costos (USD -> MXN)" 
+              parent="stock.menu_stock_inventory_control" 
+              action="action_product_cost_update_wizard" 
+              sequence="100"/>
+</odoo>

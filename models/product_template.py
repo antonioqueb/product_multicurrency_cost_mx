@@ -29,61 +29,58 @@ class ProductTemplate(models.Model):
 
     @api.depends('standard_price', 'usd_currency_id', 'company_id')
     def _compute_usd_cost(self):
-        """ Cálculo normal que se dispara al editar el producto """
         usd_currency = self.env.ref('base.USD', raise_if_not_found=False)
         for record in self:
             if not record.standard_price or not usd_currency:
                 record.usd_cost = 0.0
                 continue
             
+            # Usar la moneda de la compañía del registro o la de la sesión actual
             company = record.company_id or self.env.company
             base_currency = company.currency_id
             
-            if base_currency == usd_currency:
-                record.usd_cost = record.standard_price
-            else:
-                record.usd_cost = base_currency._convert(
-                    record.standard_price, 
-                    usd_currency, 
-                    company, 
-                    fields.Date.today()
-                )
+            record.usd_cost = base_currency._convert(
+                record.standard_price, 
+                usd_currency, 
+                company, 
+                fields.Date.today()
+            )
 
     @api.model
     def _cron_update_usd_costs(self):
         """ 
-        Método mejorado para el CRON: 
-        Fuerza la actualización de la base de datos para todos los productos.
+        CRON con LOGS detallados para ver qué está pasando 
         """
-        _logger.info("Iniciando actualización masiva de costos USD...")
+        _logger.info("=== INICIANDO CRON DE COSTOS USD ===")
         
         usd_currency = self.env.ref('base.USD', raise_if_not_found=False)
-        if not usd_currency:
-            _logger.error("No se encontró la moneda USD (base.USD)")
-            return
-
-        # Buscamos productos activos
         products = self.search([('active', '=', True)])
-        count = 0
         
         for product in products:
+            # Determinamos la empresa para la tasa de cambio
             company = product.company_id or self.env.company
             base_currency = company.currency_id
             
-            # Calculamos el nuevo valor
-            new_usd_cost = base_currency._convert(
+            # Calculamos
+            new_val = base_currency._convert(
                 product.standard_price, 
                 usd_currency, 
                 company, 
                 fields.Date.today()
             )
             
-            # Usamos write para forzar que se guarde en la BD ignorando el cache
-            # Esto actualiza el campo aunque standard_price no haya cambiado
+            # LOG DE DEPURACIÓN: Esto aparecerá en tu consola de Docker
+            _logger.info(
+                "Producto: %s | Costo MXN: %s | Nuevo USD: %s | Empresa Usada: %s", 
+                product.name, product.standard_price, new_val, company.name
+            )
+            
+            # Forzamos la escritura en la base de datos
             product.write({
-                'usd_cost': new_usd_cost,
+                'usd_cost': new_val,
                 'usd_currency_id': usd_currency.id
             })
-            count += 1
             
-        _logger.info("Se han actualizado %s productos con el tipo de cambio del día.", count)
+        # Forzar que Odoo guarde los cambios en disco inmediatamente
+        self.env.flush_all()
+        _logger.info("=== CRON FINALIZADO: %s productos procesados ===", len(products))

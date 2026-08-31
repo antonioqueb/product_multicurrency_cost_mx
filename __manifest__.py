@@ -1,6 +1,6 @@
 {
     'name': 'Product Multi-Currency Costing (MXN/USD)',
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.2.0',
     'category': 'Inventory/Purchase',
     'summary': 'Manage product costs in USD while keeping MXN as base',
     'author': 'Alphaqueb Consulting',

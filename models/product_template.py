@@ -31,18 +31,21 @@ class ProductTemplate(models.Model):
     def _compute_usd_cost(self):
         usd_currency = self.env.ref('base.USD', raise_if_not_found=False)
         for record in self:
-            if not record.standard_price or not usd_currency:
-                record.usd_cost = 0.0
-                continue
-            
             # Usar la moneda de la compañía del registro o la de la sesión actual
             company = record.company_id or self.env.company
+            # standard_price es company_dependent: se lee en la compañía
+            # del producto (no en la activa del usuario/OdooBot).
+            standard_price = record.with_company(company).standard_price
+            if not standard_price or not usd_currency:
+                record.usd_cost = 0.0
+                continue
+
             base_currency = company.currency_id
-            
+
             record.usd_cost = base_currency._convert(
-                record.standard_price, 
-                usd_currency, 
-                company, 
+                standard_price,
+                usd_currency,
+                company,
                 fields.Date.today()
             )
 
@@ -77,7 +80,12 @@ class ProductTemplate(models.Model):
             try:
                 with self.env.cr.savepoint():
                     for product in batch:
+                        # Cron = OdooBot: standard_price (company_dependent)
+                        # y tasas se resuelven con la compañía del producto;
+                        # los productos compartidos (sin compañía) siguen
+                        # con la compañía activa del cron, como hoy.
                         company = product.company_id or self.env.company
+                        product = product.with_company(company)
                         base_currency = company.currency_id
 
                         new_val = base_currency._convert(
